@@ -1,0 +1,53 @@
+# rpk connect run redpanda_config.yaml
+input:
+  label: ""
+  mqtt:
+    urls: [monster.local:1883] # No default (required)
+    client_id: ""
+    connect_timeout: 30s
+    topics: [grow_room/data] # No default (required)
+    auto_replay_nacks: true
+
+pipeline:
+  processors:
+    - mutation: |
+        root = this
+        root.message_type = "measurement"
+        root.is_alert = "False"
+        if this.temp.float64() > 71 {
+          root.temp_alert = "Alert!! Temperature too high!!"
+          root.is_alert = "True"
+        }
+        if this.humidity.float64() > 60 {
+          root.humidity_alert = "Alert!! Humidity too high!!"
+          root.is_alert = "True"
+        }
+
+output:
+  switch:
+    cases:
+      - check: this.is_alert == "True"
+        output:
+          mqtt:
+            urls: [monster.local:1883] # No default (required)
+            client_id: ""
+            connect_timeout: 30s
+            topic: "grow_room/alerts" # No default (required)
+        continue: true
+
+        output:
+          stdout:
+            codec: lines
+        continue: true
+
+      - output:
+          mqtt:
+            urls: [monster.local:1883] # No default (required)
+            client_id: ""
+            connect_timeout: 30s
+            topic: "grow_room/processed" # No default (required)
+redpanda:
+  seed_brokers:
+    - localhost
+  logs_topic: __redpanda.connect.logs
+  logs_level: info
