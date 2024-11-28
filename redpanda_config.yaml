@@ -26,7 +26,7 @@ pipeline:
 output:
   switch:
     cases:
-      - check: this.is_alert == "True"
+      - check: is_alert == "True"
         output:
           mqtt:
             urls: [monster.local:1883] # No default (required)
